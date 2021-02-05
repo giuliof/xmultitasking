@@ -27,9 +27,9 @@
 TASK_yield:
 	// old task idx
 	push	r19
-	// new task_idx
-	push	r18
 	// task_enable_mask_AT
+	push	r18
+	// new task_idx
 	push	r17
 	// task_index_mask (new)
 	push	r16
@@ -70,7 +70,15 @@ no_wrap:
 	//lds		r18, task_enable_mask_AT
 	and		r16, r18		// & task_enable_mask_AT
 	breq	find_next_task	// not enabled
+	
+	// Found a task
 
+	// check if same task, avoiding some context switch overhead
+	cp		r17, r19
+	brne	not_same_task
+	jmp		same_task
+
+not_same_task:
 	// save current task's state to its stack
 	in		r16, CPU_EIND
 	push	r16
@@ -185,6 +193,8 @@ no_wrap:
 	out		CPU_RAMPZ, r16
 	pop		r16
 	out		CPU_EIND, r16
+	
+same_task:
 	pop		zh
 	pop		zl
 	pop		r16
