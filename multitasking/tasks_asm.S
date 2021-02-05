@@ -22,7 +22,7 @@
 
 
 /******************************************************************************
-** Task switching
+** Task switching. Here, interrupts must be enabled or no task will be woke up
 */
 TASK_yield:
 	push	r19
@@ -240,12 +240,14 @@ TASK_load:
 	ldd		xh, z+1
 
 	// temporarily load new task's stack pointer
+	// Avoid turning on interrupts if not requested
+	in		r22, SREG		; save current status register (w/ I flag)
 	cli
 	in		r16, CPU_SPL
 	in		r17, CPU_SPH
 	out		CPU_SPL, xl
 	out		CPU_SPH, xh
-	sei
+	out		SREG, r22		; restore status register
 
 	push	r24
 	push	r25
@@ -295,6 +297,8 @@ TASK_load:
 	push	r1
 
 	// save new task stack pointer
+	// Avoid turning on interrupts if not requested
+	in		r22, SREG		; save current status register (w/ I flag)
 	cli
 	in		xl, CPU_SPL
 	in		xh, CPU_SPH
@@ -304,7 +308,7 @@ TASK_load:
 	// restore current task's stack pointer
 	out		CPU_SPL, r16
 	out		CPU_SPH, r17
-	sei
+	out		SREG, r22		; restore status register
 	
 	pop		xl
 	pop		xh

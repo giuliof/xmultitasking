@@ -12,6 +12,7 @@
 #include <avr/pgmspace.h>
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
+#include <util/atomic.h>
 #include <stdbool.h>
 #include "tasks.h"
 
@@ -27,64 +28,66 @@ uint8_t		task_index_mask = 1;
 
 
 /******************************************************************************
-** Set up task switching system
+** Set up task switching system. Interrupt safe.
 */
 void TASK_init(void)
 {
-	for (uint8_t i = 0; i < NUM_TASKS; i++)
-		task_stack_ptr[i] = RAMEND - (STACK_SIZE * i);
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+		for (uint8_t i = 0; i < NUM_TASKS; i++)
+			task_stack_ptr[i] = RAMEND - (STACK_SIZE * i);
 
-	task_enable_mask_AT |= 1;	// enable task 0
+		task_enable_mask_AT |= 1;	// enable task 0
+	}
 }
 
 /******************************************************************************
-** Create a new task
+** Create a new task. Interrupt safe.
 */
 void TASK_create(uint16_t task_pointer, uint8_t task_number)
 {
-	cli();
-	task_stack_ptr[task_number] = RAMEND - (STACK_SIZE * task_number);
-	TASK_load(task_pointer, task_number);
-	task_enable_mask_AT |= 1 << task_number;
-	sei();
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+		task_stack_ptr[task_number] = RAMEND - (STACK_SIZE * task_number);
+		TASK_load(task_pointer, task_number);
+		task_enable_mask_AT |= 1 << task_number;
+	}
 }
 
 /******************************************************************************
-** Enable a task. Interrupt safe.
+** Enable a task. Interrupt safe. May be called inside ISR.
 */
 void TASK_enable(uint8_t task_number)
 {
-	cli();
-	task_enable_mask_AT |= 1 << task_number;
-	sei();
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+		task_enable_mask_AT |= 1 << task_number;
+	}
 }
 
 /******************************************************************************
-** Disable a task. Interrupt safe.
+** Disable a task. Interrupt safe. May be called inside ISR.
 */
 void TASK_disable(uint8_t task_number)
 {
-	cli();
-	task_enable_mask_AT &= ~(1 << task_number);
-	sei();
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+		task_enable_mask_AT &= ~(1 << task_number);
+	}
 }
 
 /******************************************************************************
-** Sleep task. Interrupt safe.
+** Sleep task. Interrupt safe. May be called inside ISR.
 */
 void TASK_sleep(uint8_t task_number)
 {
-	cli();
-	task_sleep_mask_AT |= 1 << task_number;
-	sei();
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+		task_sleep_mask_AT |= 1 << task_number;
+	}
 }
 
 /******************************************************************************
-** Wake task. Interrupt safe.
+** Wake task. Interrupt safe. May be called inside ISR.
 */
 void TASK_wake(uint8_t task_number)
 {
-	cli();
-	task_sleep_mask_AT &= ~(1 << task_number);
-	sei();
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+		task_sleep_mask_AT &= ~(1 << task_number);
+	}
 }
