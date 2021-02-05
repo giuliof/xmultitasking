@@ -25,25 +25,29 @@
 ** Task switching. Here, interrupts must be enabled or no task will be woke up
 */
 TASK_yield:
+	// old task idx
 	push	r19
+	// new task_idx
 	push	r18
+	// task_enable_mask_AT
 	push	r17
+	// task_index_mask (new)
 	push	r16
 	push	zl
 	push	zh
 	
 	// deep power saving sleep while no tasks enabled (must be woken by by interrupts)
 psave_loop:
-	lds		r17, task_enable_mask_AT
-	tst		r17
+	lds		r18, task_enable_mask_AT
+	tst		r18
 	brne	no_psave
-	//ldi		r18, SLEEP_SMODE_PSAVE_gc | SLEEP_SEN_bm;
-	ldi		r18, 0b0111;
-	sts		SLEEP_CTRL, r18
+	//ldi		r17, SLEEP_SMODE_PSAVE_gc | SLEEP_SEN_bm;
+	ldi		r17, 0b0111;
+	sts		SLEEP_CTRL, r17
 	sleep
-	//ldi		r18, SLEEP_SMODE_IDLE_gc;
-	ldi		r18, 0b0000;
-	sts		SLEEP_CTRL, r18
+	//ldi		r17, SLEEP_SMODE_IDLE_gc;
+	ldi		r17, 0b0000;
+	sts		SLEEP_CTRL, r17
 	rjmp	psave_loop
 no_psave:
 
@@ -63,7 +67,7 @@ no_wrap:
 	sts		task_index, r17
 	sts		task_index_mask, r16
 	
-	lds		r18, task_enable_mask_AT
+	//lds		r18, task_enable_mask_AT
 	and		r16, r18		// & task_enable_mask_AT
 	breq	find_next_task	// not enabled
 
@@ -125,7 +129,7 @@ no_wrap:
 	sei
 	st		Z, r16
 
-	// load next tasks stack point into r16 and r18
+	// load next tasks stack point into r16
 	ldi		zl, lo8(task_stack_ptr)
 	ldi		zh, hi8(task_stack_ptr)
 	lsl		r17				// new task in index * 2
@@ -181,7 +185,6 @@ no_wrap:
 	out		CPU_RAMPZ, r16
 	pop		r16
 	out		CPU_EIND, r16
-
 	pop		zh
 	pop		zl
 	pop		r16
