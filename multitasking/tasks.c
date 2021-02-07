@@ -26,6 +26,20 @@ uint16_t	task_stack_ptr[NUM_TASKS];
 uint8_t		task_index = 0;
 uint8_t		task_index_mask = 1;
 
+uint8_t* const TASK_STACK_BASE[] = {
+	// Task 0 (aka main). Size can be reduced
+	(uint8_t*)RAMEND - (STACK_SIZE * 0),
+	// Task 1-7. Size is STACK_SIZE
+	(uint8_t*)RAMEND - (STACK_SIZE * 1),
+	(uint8_t*)RAMEND - (STACK_SIZE * 2),
+	(uint8_t*)RAMEND - (STACK_SIZE * 3),
+	(uint8_t*)RAMEND - (STACK_SIZE * 4),
+	(uint8_t*)RAMEND - (STACK_SIZE * 5),
+	(uint8_t*)RAMEND - (STACK_SIZE * 6),
+	(uint8_t*)RAMEND - (STACK_SIZE * 7),
+	// Task 8 does not exist. This is only a placeholder for last stacksmash
+	// detector
+	(uint8_t*)RAMEND - (STACK_SIZE * 8)};
 
 /******************************************************************************
 ** Set up task switching system. Interrupt safe.
@@ -45,11 +59,9 @@ void TASK_init(void)
 */
 void TASK_create(uint16_t task_pointer, uint8_t task_number)
 {
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-		task_stack_ptr[task_number] = RAMEND - (STACK_SIZE * task_number);
-		TASK_load(task_pointer, task_number);
-		task_enable_mask_AT |= 1 << task_number;
-	}
+    TASK_load(task_pointer, task_number);
+    // TODO: if start enabled, then...
+    TASK_enable(task_number);
 }
 
 /******************************************************************************

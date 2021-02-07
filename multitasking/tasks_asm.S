@@ -8,18 +8,21 @@
 
 #include <avr/io.h>
 
+#define MAGIC_NUMBER 0xA5
+
 .extern	task_enable_mask_AT
 .extern	task_sleep_mask_AT
 .extern	task_stack_ptr
 .extern	task_index
 .extern	task_index_mask
-
+.extern	TASK_STACK_BASE
  
 .section .text
 
 .global TASK_yield
 .global TASK_load
 
+.weak TASK_stack_smash
 
 /******************************************************************************
 ** Task switching. Here, interrupts must be enabled or no task will be woke up
@@ -73,13 +76,13 @@ no_wrap:
 	
 	// Found a task
 
-	// check if same task, avoiding some context switch overhead
+	// 1) check if same task, avoiding some context switch overhead
 	cp		r17, r19
 	brne	not_same_task
 	jmp		same_task
 
 not_same_task:
-	// save current task's state to its stack
+	// 2) save current context
 	in		r16, CPU_EIND
 	push	r16
 	in		r16, CPU_RAMPZ
@@ -123,7 +126,22 @@ not_same_task:
 	push	r2
 	push	r1
 	push	r0
-
+	
+	// 3) check stack smash -- at the moment disabled
+	ldi		zl, lo8(TASK_STACK_BASE)
+	ldi		zh, hi8(TASK_STACK_BASE)
+	ldi		r16, MAGIC_NUMBER
+	mov		r15, r19	; copy task id
+	inc		r15			; get near task id
+	lsl		r15			; task index * 2
+	add		zl, r15
+	adc		zh, r1		; GGC keeps r1 always 0
+	ld		xl, z
+	ldd		xh, z+1
+	ld		r15, X
+	cpse	r15, r16
+	call	TASK_stack_smash
+	
 	// save current task's stack pointer
 	ldi		zl, lo8(task_stack_ptr)
 	ldi		zh, hi8(task_stack_ptr)
@@ -232,14 +250,18 @@ idle_sleep_exit:
 ** task index in r22
 */
 TASK_load:
-	push	r22
+	; push	r22
 	push	r17
 	push	r16
 	push	zh
 	push	zl
+	push	yh
+	push	yl
 	push	xh
 	push	xl
-
+    
+	ldi		yl, lo8(TASK_STACK_BASE)
+	ldi		yh, hi8(TASK_STACK_BASE)
 
 	// load new tasks stack point into r16 and r18
 	ldi		zl, lo8(task_stack_ptr)
@@ -248,10 +270,17 @@ TASK_load:
 	lsl		r22				// new task in index * 2
 	add		zl, r22
 	adc		zh, r1			// GGC keeps r1 always 0
+	add		yl, r22
+	adc		yh, r1			// GGC keeps r1 always 0
 
 	ld		xl, z			// load stack pointer in X
 	ldd		xh, z+1
-
+	
+	// skip one byte for MAGIC_NUMBER
+	sbiw	xl, 1
+	st		y, xl
+	std		y+1, xh
+	
 	// temporarily load new task's stack pointer
 	// Avoid turning on interrupts if not requested
 	in		r22, SREG		; save current status register (w/ I flag)
@@ -261,6 +290,8 @@ TASK_load:
 	out		CPU_SPL, xl
 	out		CPU_SPH, xh
 	out		SREG, r22		; restore status register
+	
+	// Put magic number at task beginning
 
 	push	r24
 	push	r25
@@ -323,11 +354,25 @@ TASK_load:
 	out		CPU_SPH, r17
 	out		SREG, r22		; restore status register
 	
+	// store MAGIC_NUMBER in next task's stack
+	ldi		r16, MAGIC_NUMBER
+	adiw	xl, 2
+	st		x, r16
+	
 	pop		xl
 	pop		xh
+	pop		yl
+	pop		yh
 	pop		zl
 	pop		zh
 	pop		r16
 	pop		r17
-	pop		r22
+	; pop		r22
 	ret
+
+TASK_stack_smash:
+	; Trace informations
+	; r19 - old task idx
+	; r18 - task_enable_mask_AT
+	; r17 - new task idx
+	jmp TASK_stack_smash

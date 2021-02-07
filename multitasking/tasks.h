@@ -17,5 +17,9 @@ extern void TASK_create(uint16_t task_pointer, uint8_t task_number);
 extern void TASK_yield(void);
 extern void TASK_load(uint16_t task_ptr, uint8_t task_number);
 
+void TASK_enable(uint8_t task_number);
+void TASK_disable(uint8_t task_number);
+void TASK_sleep(uint8_t task_number);
+void TASK_wake(uint8_t task_number);
 
 #endif /* TASKS_H_ */
