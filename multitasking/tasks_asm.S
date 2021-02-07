@@ -259,22 +259,25 @@ TASK_load:
 	push	yl
 	push	xh
 	push	xl
-    
+
+	// load task stack base vector in X
 	ldi		yl, lo8(TASK_STACK_BASE)
 	ldi		yh, hi8(TASK_STACK_BASE)
 
-	// load new tasks stack point into r16 and r18
+	// load task stack pointer vector in Z
 	ldi		zl, lo8(task_stack_ptr)
 	ldi		zh, hi8(task_stack_ptr)
-							// task index in r22
+	
+	// move vectors to current task (+2*r22)
 	lsl		r22				// new task in index * 2
 	add		zl, r22
 	adc		zh, r1			// GGC keeps r1 always 0
 	add		yl, r22
 	adc		yh, r1			// GGC keeps r1 always 0
-
-	ld		xl, z			// load stack pointer in X
-	ldd		xh, z+1
+	
+	// load current tasks stack pointer in X
+	ld		xl, y
+	ldd		xh, y+1
 	
 	// skip one byte for MAGIC_NUMBER
 	sbiw	xl, 1
