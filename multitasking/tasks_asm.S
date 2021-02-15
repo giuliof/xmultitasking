@@ -11,7 +11,6 @@
 #define MAGIC_NUMBER 0xA5
 
 .extern	task_enable_mask_AT
-.extern	task_sleep_mask_AT
 .extern	task_stack_ptr
 .extern	task_index
 .extern	task_index_mask
@@ -40,19 +39,10 @@ TASK_yield:
 	push	zh
 	
 	// deep power saving sleep while no tasks enabled (must be woken by by interrupts)
-psave_loop:
+idle_loop:
 	lds		r18, task_enable_mask_AT
 	tst		r18
-	brne	no_psave
-	//ldi		r17, SLEEP_SMODE_PSAVE_gc | SLEEP_SEN_bm;
-	ldi		r17, 0b0111;
-	sts		SLEEP_CTRL, r17
-	sleep
-	//ldi		r17, SLEEP_SMODE_IDLE_gc;
-	ldi		r17, 0b0000;
-	sts		SLEEP_CTRL, r17
-	rjmp	psave_loop
-no_psave:
+	breq	idle_loop
 
 	// find next task
 	lds		r17, task_index
@@ -65,12 +55,10 @@ find_next_task:
 	brlt	no_wrap
 	ldi		r17, 0			// task_index
 	ldi		r16, 1			// task_index_mask
-	rcall	idle_sleep		// idle sleep mode when all tasks asleep
 no_wrap:
 	sts		task_index, r17
 	sts		task_index_mask, r16
 	
-	//lds		r18, task_enable_mask_AT
 	and		r16, r18		// & task_enable_mask_AT
 	breq	find_next_task	// not enabled
 	
@@ -127,7 +115,7 @@ not_same_task:
 	push	r1
 	push	r0
 	
-	// 3) check stack smash -- at the moment disabled
+	// 3) check stack smash
 	ldi		zl, lo8(TASK_STACK_BASE)
 	ldi		zh, hi8(TASK_STACK_BASE)
 	ldi		r16, MAGIC_NUMBER

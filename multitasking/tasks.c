@@ -57,11 +57,11 @@ void TASK_init(void)
 /******************************************************************************
 ** Create a new task. Interrupt safe.
 */
-void TASK_create(uint16_t task_pointer, uint8_t task_number)
+void TASK_create(uint16_t task_pointer, uint8_t task_number, bool start)
 {
     TASK_load(task_pointer, task_number);
-    // TODO: if start enabled, then...
-    TASK_enable(task_number);
+    if (start)
+    	TASK_enable(task_number);
 }
 
 /******************************************************************************
@@ -81,25 +81,5 @@ void TASK_disable(uint8_t task_number)
 {
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
 		task_enable_mask_AT &= ~(1 << task_number);
-	}
-}
-
-/******************************************************************************
-** Sleep task. Interrupt safe. May be called inside ISR.
-*/
-void TASK_sleep(uint8_t task_number)
-{
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-		task_sleep_mask_AT |= 1 << task_number;
-	}
-}
-
-/******************************************************************************
-** Wake task. Interrupt safe. May be called inside ISR.
-*/
-void TASK_wake(uint8_t task_number)
-{
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-		task_sleep_mask_AT &= ~(1 << task_number);
 	}
 }

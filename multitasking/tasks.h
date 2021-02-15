@@ -11,7 +11,7 @@
 
 
 extern void TASK_init(void);
-extern void TASK_create(uint16_t task_pointer, uint8_t task_number);
+void TASK_create(uint16_t task_pointer, uint8_t task_number, bool start);
 
 // tasks_asm.S
 extern void TASK_yield(void);
