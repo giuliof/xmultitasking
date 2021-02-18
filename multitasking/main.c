@@ -6,6 +6,8 @@
  */ 
 
 #include <avr/io.h>
+#include <avr/interrupt.h>
+#include <util/delay.h>
 #include "tasks.h"
 
 
@@ -19,16 +21,10 @@ void task2(void) __attribute__ ((noreturn));
 */
 void task0(void)
 {
-	uint8_t count = 0;
-
 	for(;;)
 	{
-		count++;
-		if (count == 0)
-		{
-			PORTA.OUTTGL = PIN0_bm;
-			TASK_yield();
-		}
+		PORTA.OUTTGL = PIN0_bm;
+		TASK_wait(1, ticks_to_ms(200));
 	}
 }
 
@@ -38,16 +34,10 @@ void task0(void)
 */
 void task1(void)
 {
-	uint8_t count = 0;
-
 	for(;;)
 	{
-		count++;
-		if (count == 1)
-		{
-			PORTA.OUTTGL = PIN1_bm;
-			TASK_yield();
-		}
+		PORTA.OUTTGL = PIN1_bm;
+		TASK_wait(1, ticks_to_ms(400));
 	}
 }
 
@@ -57,16 +47,10 @@ void task1(void)
 */
 void task2(void)
 {
-	uint8_t count = 0;
-
 	for(;;)
 	{
-		count++;
-		if (count == 2)
-		{
-			PORTA.OUTTGL = PIN2_bm;
-			TASK_yield();
-		}
+		PORTA.OUTTGL = PIN2_bm;
+		TASK_wait(1, ticks_to_s(1));
 	}
 }
 
@@ -76,19 +60,24 @@ void task2(void)
 */
 int main(void)
 {
+	PORTA.DIRSET = PIN0_bm | PIN1_bm | PIN2_bm | PIN3_bm;
 	TASK_init();
-	TASK_create((uint16_t)task1, 1);
-	TASK_create((uint16_t)task2, 2);
-	TASK_yield();
+	TASK_create(task1, 1);
+	TASK_create(task2, 2);
 
-	uint8_t count = 0;
-	for(;;)
-	{
-		count++;
-		if (count == 2)
-		{
-			PORTA.OUTTGL = PIN0_bm;
-			TASK_yield();
-		}
+	PORTA.OUTSET = PIN0_bm;
+	_delay_ms(1000);
+	PORTA.OUTCLR = PIN0_bm;
+	_delay_ms(1000);
+
+  sei();
+	
+	task0();
+}
+
+void TASK_stack_smash() {
+	for(;;) {
+			PORTA.OUTTGL = PIN3_bm;
+			_delay_ms(200);
 	}
 }

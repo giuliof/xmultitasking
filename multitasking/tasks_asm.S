@@ -8,7 +8,7 @@
 
 #include <avr/io.h>
 
-#define MAGIC_NUMBER 0xA5
+#include "tasks_params.h"
 
 .extern	task_enable_mask_AT
 .extern	task_stack_ptr
@@ -51,7 +51,7 @@ find_next_task:
 	lds		r16, task_index_mask
 	lsl		r16
 	inc		r17
-	cpi		r17, 8
+	cpi		r17, NUM_TASKS
 	brlt	no_wrap
 	ldi		r17, 0			// task_index
 	ldi		r16, 1			// task_index_mask
@@ -210,28 +210,6 @@ same_task:
 	ret
 
 
-idle_sleep:
-	push	r18
-	push	r17
-	cli
-	lds		r18, task_sleep_mask_AT
-	lds		r17, task_enable_mask_AT
-	sei
-	cp		r17, r18
-	brne	idle_sleep_exit
-	//ldi		r18, SLEEP_SMODE_IDLE_gc | SLEEP_SEN_bm;
-	ldi		r18, 0b0001;
-	sts		SLEEP_CTRL, r18
-	sleep
-	//ldi		r18, SLEEP_SMODE_IDLE_gc;
-	ldi		r18, 0b0000;
-	sts		SLEEP_CTRL, r18
-idle_sleep_exit:
-	pop		r17
-	pop		r18
-	ret
-
-
 /******************************************************************************
 ** Task creation
 ** task pointer in r24:r25
@@ -248,7 +226,7 @@ TASK_load:
 	push	xh
 	push	xl
 
-	// load task stack base vector in X
+	//// load task stack base vector in X
 	ldi		yl, lo8(TASK_STACK_BASE)
 	ldi		yh, hi8(TASK_STACK_BASE)
 
@@ -267,10 +245,10 @@ TASK_load:
 	ld		xl, y
 	ldd		xh, y+1
 	
-	// skip one byte for MAGIC_NUMBER
+	//// skip one byte for MAGIC_NUMBER
 	sbiw	xl, 1
-	st		y, xl
-	std		y+1, xh
+	//st		z, xl
+	//std		z+1, xh
 	
 	// temporarily load new task's stack pointer
 	// Avoid turning on interrupts if not requested
@@ -282,15 +260,17 @@ TASK_load:
 	out		CPU_SPH, xh
 	out		SREG, r22		; restore status register
 	
-	// Put magic number at task beginning
-
+	// Some devices have more than 128 KiB of program memory.
+	// This also means that the program counter (PC) is 3 bytes wide. 
 	push	r24
 	push	r25
-	push	r1				// 24 bit return address
+	#ifdef __AVR_3_BYTE_PC__
+	// I'm assuming that task routine is relocated in internal flash,
+	// so I'm pushing 0 as MSB
+	push	r1
+	#endif
 	
-
 	// clear all registers that will be reloaded from stack
-
 	push	r1
 	push	r1
 	push	r1
@@ -347,7 +327,9 @@ TASK_load:
 	
 	// store MAGIC_NUMBER in next task's stack
 	ldi		r16, MAGIC_NUMBER
-	adiw	xl, 2
+	adiw	yl, 2
+	ld		xl, y
+	ldd		xh, y+1
 	st		x, r16
 	
 	pop		xl

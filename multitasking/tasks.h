@@ -9,17 +9,21 @@
 #ifndef TASKS_H_
 #define TASKS_H_
 
+#include <stdbool.h>
 
 extern void TASK_init(void);
-void TASK_create(uint16_t task_pointer, uint8_t task_number, bool start);
+void TASK_create(void (* task_pointer)(), const uint8_t task_number);
 
 // tasks_asm.S
 extern void TASK_yield(void);
-extern void TASK_load(uint16_t task_ptr, uint8_t task_number);
+extern void TASK_load(void (* task_pointer)(), const uint8_t task_number);
 
-void TASK_enable(uint8_t task_number);
-void TASK_disable(uint8_t task_number);
-void TASK_sleep(uint8_t task_number);
-void TASK_wake(uint8_t task_number);
+void TASK_enable(const uint8_t task_number);
+void TASK_disable(const uint8_t task_number);
+uint8_t TASK_wait(const uint8_t event_mask, const uint16_t timeout);
+void TASK_signal(const uint8_t task_number, const uint8_t event_mask);
+
+#define ticks_to_s(s) ((s) * 1000 / TICKS_MS)
+#define ticks_to_ms(ms) ((ms) / TICKS_MS)
 
 #endif /* TASKS_H_ */
