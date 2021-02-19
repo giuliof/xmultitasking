@@ -1,9 +1,14 @@
-/*
- * multitasking.c
- *
- * Created: 26/05/2016 13:55:47
- * Author : paul.qureshi
- */ 
+/**
+ * @file main.c
+ * @author paul.qureshi
+ * @author giuliof (giulio@glgprograms.it)
+ * @brief A simple example
+ * @version 1.0
+ * @date 2021-02-19
+ * 
+ * @copyright GNU General Public License v3.0
+ * 
+ */
 
 #include <avr/io.h>
 #include <avr/interrupt.h>

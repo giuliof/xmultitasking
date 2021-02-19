@@ -1,11 +1,13 @@
-/*
- * tasks.c
- *
- * Created: 26/05/2016 13:57:20
- *  Author: paul.qureshi
- *
- * Note: Task 0's stack should begin where GCC's stack does by default, i.e. RAMEND.
- * This allows main() to become task 0.
+/**
+ * @file tasks.c
+ * @author paul.qureshi
+ * @author giuliof (giulio@glgprograms.it)
+ * @brief
+ * @version 1.0
+ * @date 2021-02-19
+ * 
+ * @copyright GNU General Public License v3.0
+ * 
  */ 
 
 #include <avr/io.h>
@@ -22,18 +24,24 @@ static void systick_init();
 
 #define is_task_enabled(i) (task_enable_mask_AT & _BV(i))
 
-uint8_t		task_enable_mask_AT = 0;		// written by interrupts!
-// TODO: init all to zero?
+// keeps the mask of enabled tasks
+uint8_t		task_enable_mask_AT = 0;
 // keeps the mask of the event that can wake the task
-static uint8_t   task_event_mask[NUM_TASKS];
+static volatile uint8_t   task_event_mask[NUM_TASKS];
 // keeps the mask of the event that woke the task
-static uint8_t   task_event_id[NUM_TASKS];
+static volatile uint8_t   task_event_id[NUM_TASKS];
 // systick-driven counter for timed events
 static volatile uint16_t  task_timeout[NUM_TASKS];
-uint8_t* 	task_stack_ptr[NUM_TASKS];
-uint8_t		task_index = 0;
-uint8_t		task_index_mask = 1;
+// saved stack pointer for not running tasks
+uint8_t* 	volatile task_stack_ptr[NUM_TASKS];
+// currently running task index
+uint8_t		volatile task_index = 0;
+// currently running task mask
+uint8_t		volatile task_index_mask = 1;
 
+
+// Note: Task 0's stack should begin where GCC's stack does by default, i.e. RAMEND.
+// This allows main() to become task 0.
 uint8_t* const TASK_STACK_BASE[] = {
 	// Task 0 (aka main). Size can be trimmed
 	(uint8_t*)RAMEND - (STACK_SIZE * 0),
@@ -55,17 +63,49 @@ uint8_t* const TASK_STACK_BASE[] = {
 void TASK_init(void)
 {
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-		// for (uint8_t i = 0; i < NUM_TASKS; i++) {
-		// 	task_stack_ptr[i] = TASK_STACK_BASE[i] - 1;
-    //   *TASK_STACK_BASE[i] = MAGIC_NUMBER;
-    // }
     // Set canary byte for task 0
     *TASK_STACK_BASE[1] = MAGIC_NUMBER;
     // enable task 0
 		task_enable_mask_AT |= 1;
 	}
   
+  // Initialize the timer
   systick_init();
+}
+
+/******************************************************************************
+** Set up a timer/counter for timeout events. Called by TASK_init
+*/
+static void systick_init() {
+  // normal mode (no pwm or other)
+  TCC0.CTRLB = 0x00;
+
+  // generate a HI-lvl interrupt when overflow
+  TCC0.INTCTRLA = TC_OVFINTLVL_HI_gc;
+
+  // enable HI-lvl interrupt mask
+  PMIC.CTRL |= PMIC_HILVLEN_bm;
+
+  TCC0.CNT = 0;
+  TCC0.PER = F_CPU * TICKS_MS / TPRESCALER / 1000;
+
+  #if TPRESCALER == 1
+    TCC0.CTRLA = TC_CLKSEL_DIV1_gc;
+  #elif TPRESCALER == 2
+    TCC0.CTRLA = TC_CLKSEL_DIV2_gc;
+  #elif TPRESCALER == 4
+    TCC0.CTRLA = TC_CLKSEL_DIV4_gc;
+  #elif TPRESCALER == 8
+    TCC0.CTRLA = TC_CLKSEL_DIV8_gc;
+  #elif TPRESCALER == 64
+    TCC0.CTRLA = TC_CLKSEL_DIV64_gc;
+  #elif TPRESCALER == 256
+    TCC0.CTRLA = TC_CLKSEL_DIV256_gc;
+  #elif TPRESCALER == 1024
+    TCC0.CTRLA = TC_CLKSEL_DIV1024_gc;
+  #else
+    #error "Wrong definition of TPRESCALER"
+  #endif
 }
 
 /******************************************************************************
@@ -145,40 +185,9 @@ void TASK_signal(const uint8_t task_number, const uint8_t event_mask) {
 	}
 }
 
-static void systick_init() {
-  // Set up in byte mode (CNTH = 0)
-  //~ TCC0.CTRLE = TC_BYTEM_BYTEMODE_gc;
-  // normal mode (no pwm or other)
-  TCC0.CTRLB = 0x00;
-
-  // generate a HI-lvl interrupt when overflow
-  TCC0.INTCTRLA = TC_OVFINTLVL_HI_gc;
-
-  PMIC.CTRL |= PMIC_HILVLEN_bm;
-
-  TCC0.CNT = 0;
-  TCC0.PER = F_CPU * TICKS_MS / TPRESCALER / 1000;
-
-  #if TPRESCALER == 1
-    TCC0.CTRLA = TC_CLKSEL_DIV1_gc;
-  #elif TPRESCALER == 2
-    TCC0.CTRLA = TC_CLKSEL_DIV2_gc;
-  #elif TPRESCALER == 4
-    TCC0.CTRLA = TC_CLKSEL_DIV4_gc;
-  #elif TPRESCALER == 8
-    TCC0.CTRLA = TC_CLKSEL_DIV8_gc;
-  #elif TPRESCALER == 64
-    TCC0.CTRLA = TC_CLKSEL_DIV64_gc;
-  #elif TPRESCALER == 256
-    TCC0.CTRLA = TC_CLKSEL_DIV256_gc;
-  #elif TPRESCALER == 1024
-    TCC0.CTRLA = TC_CLKSEL_DIV1024_gc;
-  #else
-    #error "Wrong definition of TPRESCALER"
-  #endif
-}
-
-// Systick routine
+/******************************************************************************
+** Systick interrupt. Wake tasks waiting for a timeout
+*/
 ISR(TCC0_OVF_vect) {
   for (uint8_t i = 0; i < NUM_TASKS; i++) {
     // Ignore tasks not waiting for timeout events

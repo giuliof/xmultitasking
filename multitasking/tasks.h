@@ -1,10 +1,14 @@
-/*
- * tasks.h
- *
- * Created: 26/05/2016 13:57:40
- *  Author: paul.qureshi
- */ 
-
+/**
+ * @file tasks.h
+ * @author paul.qureshi
+ * @author giuliof (giulio@glgprograms.it)
+ * @brief
+ * @version 1.0
+ * @date 2021-02-19
+ * 
+ * @copyright GNU General Public License v3.0
+ * 
+ */
 
 #ifndef TASKS_H_
 #define TASKS_H_

@@ -1,9 +1,13 @@
-
-/*
- * tasks_asm.S
- *
- * Created: 26/05/2016 14:45:34
- *  Author: paul.qureshi
+/**
+ * @file tasks_asm.S
+ * @author paul.qureshi
+ * @author giuliof (giulio@glgprograms.it)
+ * @brief
+ * @version 1.0
+ * @date 2021-02-19
+ * 
+ * @copyright GNU General Public License v3.0
+ * 
  */ 
 
 #include <avr/io.h>
@@ -271,45 +275,45 @@ TASK_load:
 	#endif
 	
 	// clear all registers that will be reloaded from stack
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
+	push	r1 ; r19
+	push	r1 ; r18
+	push	r1 ; r17
+	push	r1 ; r16
+	push	r1 ; zl
+	push	r1 ; zh
+	
+	push	r1 ; CPU_EIND
+	push	r1 ; CPU_RAMPZ
+	push	r1 ; CPU_RAMPY
+	push	r1 ; CPU_RAMPX
+	push	r1 ; CPU_RAMPD
 
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
-	push	r1
+	push	r1 ; r29
+	push	r1 ; r28
+	push	r1 ; r27
+	push	r1 ; r26
+	push	r1 ; r25
+	push	r1 ; r24
+	push	r1 ; r23
+	push	r1 ; r22
+	push	r1 ; r21
+	push	r1 ; r20
+	push	r1 ; r15
+	push	r1 ; r14
+	push	r1 ; r13
+	push	r1 ; r12
+	push	r1 ; r11
+	push	r1 ; r10
+	push	r1 ; r9
+	push	r1 ; r8
+	push	r1 ; r7
+	push	r1 ; r6
+	push	r1 ; r5
+	push	r1 ; r4
+	push	r1 ; r3
+	push	r1 ; r2
+	push	r1 ; r1
+	push	r1 ; r0
 
 	// save new task stack pointer
 	// Avoid turning on interrupts if not requested
@@ -343,9 +347,12 @@ TASK_load:
 	; pop		r22
 	ret
 
+/******************************************************************************
+** Stack smash routine. Weak symbol, may me overwritten.
+*/
 TASK_stack_smash:
 	; Trace informations
 	; r19 - old task idx
 	; r18 - task_enable_mask_AT
 	; r17 - new task idx
-	jmp TASK_stack_smash
+	rjmp TASK_stack_smash
